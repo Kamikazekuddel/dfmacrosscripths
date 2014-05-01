@@ -1,0 +1,7 @@
+B
+D
+-------
+repeat horizontal mirrored corridor 8 1
+repeat vertical 3
+add wall left
+add corridor left
