@@ -1,4 +1,7 @@
+module Blueprintscript (readBlueprintScriptFromFile) where
 import Blueprint
+
+import Data.Char
 
 --reading of an initial blueprint
 readBlueprintCell :: Char->Blueprintcell
@@ -29,8 +32,13 @@ readScriptCommands strs = foldl (.) id $reverse  $ (map readScriptLine) $ (filte
 readScriptLine :: String->Blueprint->Blueprint
 readScriptLine str = assignCommand$ words str
 
+capatalize :: String->String
+capatalize "" = ""
+capatalize (x:xs) = (toUpper x:xs)
+
 assignCommand :: [String]->Blueprint->Blueprint
 assignCommand ("repeat":"horizontal":"mirrored":"corridor":n:m:xs) = repeatedMirroredCorridor (read n) (read m)
+assignCommand ("repeat":"vertical":"mirrored":"corridor":n:m:xs)   = repeatedMirroredCorridorVertical (read n) (read m)
 assignCommand ("repeat":"horizontal":n:xs)  = horizontalRepeatBlueprintW (read n)
 assignCommand ("repeat":"vertical":n:xs)    = verticalRepeatBlueprintW (read n)
 assignCommand ("reflect":"horizontal":xs)   = horizontalMirror 
@@ -44,6 +52,7 @@ assignCommand ("add":"corridor":"top":xs)   = addCorridorTop
 assignCommand ("add":"corridor":"bot":xs)   = addCorridorBot
 assignCommand ("add":"corridor":"left":xs)  = addCorridorLeft
 assignCommand ("add":"corridor":"right":xs) = addCorridorRight
+assignCommand ("add":"start":symPoint:xs)   = addStartingPoint (read $ capatalize symPoint) 
 assignCommand ("rotate":xs)                 = rotate90
 assignCommand _                             = id
      

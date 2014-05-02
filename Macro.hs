@@ -1,5 +1,7 @@
+module Macro (macrofiles) where
 import Blueprint
 import System.IO 
+import Control.Monad
 
 
 --this module maces df macros out of blueprints
@@ -10,11 +12,21 @@ data Macrotype = Dig | Furniture | Bed
     deriving (Show,Eq)
 
 blueprint2Macro::Blueprint->Macrotype->String->String
-blueprint2Macro bp mtype name  = (name++(show mtype)++"\n") ++ 
-                                 (foldl1 (\a b -> a ++ (nextLineBeginning (n-1)) ++ (b))  (map (\c->horizontalBlueprintLine2Macro c mtype) lists))
+blueprint2Macro bp mtype name  = (name++(show mtype)++"\n")
+                                 ++ (startingPointMovements bp)
+                                 ++(foldl1 (\a b -> a ++ (nextLineBeginning (n-1)) ++ (b))  (map (\c->horizontalBlueprintLine2Macro c mtype) lists))
                                  ++ "End of macro\n"
     where lists = blueprint bp
           n = length $ head lists 
+
+--starting Point Movements
+--this determines wheather there is a starting point and then moves from there to the
+--upper left corner of the bp before starting
+
+startingPointMovements :: Blueprint->String
+startingPointMovements bp = case (startCoordinates bp) of 
+                            Just (n,m)  ->concat (replicate n cu) ++ concat (replicate m cl)
+                            Nothing     ->""
 
 --end of group string that is needed a lot
 eog :: String
@@ -28,6 +40,9 @@ cr = "\t\tCURSOR_RIGHT" ++ eog
 
 cd::  String
 cd = "\t\tCURSOR_DOWN" ++ eog
+
+cu::  String
+cu = "\t\tCURSOR_UP" ++ eog
 
 leavescreen :: String
 leavescreen = "\t\tLEAVESCREEN" ++ eog
@@ -79,4 +94,4 @@ nextLineBeginning n = cd ++ (concat $ replicate n cl)
 macrofiles :: FilePath->Blueprint->String->IO ()
 macrofiles macrofolder bp macroname = do writeFile (macrofolder++macroname++(show Dig)++".mak") (blueprint2Macro bp Dig macroname)
                                          writeFile (macrofolder++macroname++(show Furniture)++".mak") (blueprint2Macro bp Furniture macroname)
-                                         writeFile (macrofolder++macroname++(show Bed)++".mak") (blueprint2Macro bp Bed macroname)
+                                         when (hasBeds bp) $writeFile (macrofolder++macroname++(show Bed)++".mak") (blueprint2Macro bp Bed macroname)

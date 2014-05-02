@@ -15,6 +15,10 @@ data Blueprint = Blueprint {blueprint :: [[Blueprintcell]]}
 instance Show Blueprint where
     show = showblueprint . blueprint 
 
+data SymmetryPoint = Topleft | Topmiddle | Topright | Left | Middle | Right |
+                     Botleft | Botmiddle | Botright
+    deriving (Eq,Show,Read)
+
 blueprintcell2char :: Blueprintcell->Char
 blueprintcell2char Nothing   = '#'
 blueprintcell2char (Just c)  = c
@@ -55,6 +59,21 @@ isWallsegment (n,m) = (==Nothing).(blueprintElement (n,m))
 isWallArea :: (Int,Int)->(Int,Int)->Blueprint->Bool
 isWallArea (n1,m1) (n2,m2) bp = all (\(a,b)-> isWallsegment (a,b) bp) [(n,m) |n<-[n1..n2],m<-[m1..m2]]
 
+hasBeds :: Blueprint->Bool
+hasBeds = (elem (Just 'B')).concat.blueprint
+
+hasStartingPoint :: Blueprint->Bool
+hasStartingPoint = (elem (Just 'S')).concat.blueprint
+
+startCoordinates :: Blueprint->Maybe (Int,Int)
+startCoordinates bp 
+    |hasStartingPoint bp = Just (value rownumber,value $ elemIndex (Just 'S') (value row))
+    |otherwise           = Nothing
+    where blueprintList = blueprint bp
+          row           = find (elem (Just 'S')) blueprintList
+          rownumber     = findIndex (elem (Just 'S')) blueprintList
+          value (Just x)= x           
+ 
 --emptyBlueprint
 
 emptyBP :: Int->Int->Blueprint
@@ -168,20 +187,53 @@ repeatedMirroredCorridor n corridorwidth bp = let bp1 = (horizontalRepeatBluepri
                                                   bp2 = horizontalMirror bp1
                                               in joinCorridorHorizontal corridorwidth bp1 bp2
 
+joinCorridorVertical:: Int->Blueprint->Blueprint->Blueprint
+joinCorridorVertical width bp1 bp2 = let corridor = Blueprint $ (replicate (length $ blueprint bp1) (replicate width (Just '.')))
+                                     in bp1 ||| corridor ||| bp2
+
+repeatedMirroredCorridorVertical :: Int->Int->Blueprint->Blueprint
+repeatedMirroredCorridorVertical n corridorwidth bp = let bp1 = (verticalRepeatBlueprintW n bp)
+                                                          bp2 = verticalMirror bp1
+                                                      in joinCorridorVertical corridorwidth bp1 bp2
+
 --fourfold repetition
 
 fourfold :: Blueprint->Blueprint
 fourfold bp = let n = blueprintWidth bp
                   m = blueprintHeight bp 
-                  corridorbp = bp ^^^ (rectangularRoom n 1)
-                  background = emptyBP (n+m+2) (n+m+2)
-              in replaceBlueprintArea (0,0) corridorbp $
-                 replaceBlueprintArea (m+2,0) (rotate90 corridorbp) $ 
-                 replaceBlueprintArea (n+1,m+2) (rotate90 $ rotate90 corridorbp) $
-                 replaceBlueprintArea (0,n+1) (rotate90$ rotate90 $ rotate90 corridorbp) $
-                 replaceBlueprintArea (m,m) (rectangularRoom (n-m+2) (n-m+2))
+                  background = emptyBP (n+m) (n+m)
+              in replaceBlueprintArea (0,0) bp $
+                 replaceBlueprintArea (m,0) (rotate90 bp) $ 
+                 replaceBlueprintArea (n,m) (rotate90 $ rotate90 bp) $
+                 replaceBlueprintArea (0,n) (rotate90$ rotate90 $ rotate90 bp) $
+                 replaceBlueprintArea (m,m) (rectangularRoom (n-m) (n-m))
                  background
 
+--setting a starting point for the script
+--starting points can automatically be placed at 9 different positions
+--which are the symmetry points of the rectangel
+--SWWWWWSWWWWWS
+--W           W
+--S     S     S
+--W           W
+--SWWWWWSWWWWWS
+
+symmetryPointCoordinates::SymmetryPoint->Blueprint->(Int,Int)
+symmetryPointCoordinates sp bp
+    |sp==Topleft        = (0,0)
+    |sp==Topmiddle      = (n `div` 2,0)
+    |sp==Topright       = (n,0)
+    |sp==Blueprint.Left = (0,m `div` 2)
+    |sp==Middle         = (n `div` 2,m `div` 2)
+    |sp==Blueprint.Right= (n,m `div` 2)
+    |sp==Botleft        = (0,m)
+    |sp==Botmiddle      = (n `div` 2,m)
+    |sp==Botright       = (n,m)
+        where n = blueprintWidth bp
+              m = blueprintHeight bp
+
+addStartingPoint :: SymmetryPoint->Blueprint->Blueprint
+addStartingPoint sp bp = replaceBlueprintCell (symmetryPointCoordinates sp bp) (Just 'S') bp
 
 --examples
 exampleBedroom = Blueprint [[Just 'H',Just 'F'],[Just '.',Just 'B'],[Just 'D', Nothing]]
